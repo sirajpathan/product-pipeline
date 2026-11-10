@@ -97,6 +97,8 @@ The numbers match the labels in the architecture diagram.
 3. Use a distributed cache if clients want lower latency across multiple regions, replicating only region-specific data into the cache collection.
 4. Display components based on role assigned to the user.
 5. Hard-coded credentials and storeId used in application for demo purpose.
+6. Use extra layer on database to make CRUD operations
+7. Add unit test cases
 
 
 ## How to run
