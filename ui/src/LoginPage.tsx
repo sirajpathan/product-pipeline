@@ -93,6 +93,7 @@ function LoginPage() {
                 autoComplete="email"
                 id="login-email"
                 name="email"
+                value="admin@gmail.com"
                 placeholder="you@example.com"
                 required
                 type="email"
@@ -107,6 +108,7 @@ function LoginPage() {
                   autoComplete="current-password"
                   id="login-password"
                   name="password"
+                  value="123456"
                   placeholder="Enter your password"
                   required
                   type={passwordVisible ? 'text' : 'password'}

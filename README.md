@@ -95,6 +95,8 @@ The numbers match the labels in the architecture diagram.
 1. Add a table of products under processing, and a React page where users can see problematic rows, correct them and resubmit the same job.
 2. Store the JWT in cookies instead of local storage (currently local storage is used for local development).
 3. Use a distributed cache if clients want lower latency across multiple regions, replicating only region-specific data into the cache collection.
+4. Display components based on role assigned to the user.
+5. Hard-coded credentials and storeId used in application for demo purpose.
 
 
 ## How to run
