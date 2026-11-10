@@ -1,0 +1,143 @@
+name: retail-pricing-local
+
+services:
+  react-prod:
+    build:
+      context: ./ui/
+      dockerfile: Dockerfile
+    container_name: react_production_app
+    ports:
+      - "8080:80"
+    restart: unless-stopped
+  redis:
+    image: redis:7-alpine
+    container_name: retail-pricing-redis
+    restart: unless-stopped
+    environment:
+      REDIS_USERNAME: ${REDIS_USERNAME:?Set REDIS_USERNAME in .env}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env}
+    command:
+      - sh
+      - -c
+      - printf 'user %s on >%s ~* &* +@all\nuser default off\n' "$$REDIS_USERNAME" "$$REDIS_PASSWORD" > /tmp/users.acl && exec redis-server --appendonly yes --aclfile /tmp/users.acl
+    ports:
+      - "127.0.0.1:${REDIS_PORT:-6380}:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - retail-net
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - REDISCLI_AUTH="$${REDIS_PASSWORD}" redis-cli --user "$${REDIS_USERNAME}" ping | grep -q PONG
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+
+  postgres:
+    image: postgres:17.11-alpine
+    container_name: retail-pricing-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-retail_pricing}
+      POSTGRES_USER: ${POSTGRES_USER:-retail_app}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-retail_app}
+      # Init scripts in /docker-entrypoint-initdb.d run only on an empty data volume.
+      PGDATA: /var/lib/postgresql/data/pgdata
+    command:
+      - postgres
+      - -c
+      - wal_level=logical
+      - -c
+      - max_wal_senders=10
+      - -c
+      - max_replication_slots=10
+      - -c
+      - wal_keep_size=512MB
+      - -c
+      - max_connections=150
+    ports:
+      - "54321:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - retail-net
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+
+  # app:
+  #   build: .
+  #   container_name: retail-pricing-app
+  #   restart: unless-stopped
+  #   ports:
+  #     - "3000:3000"
+  #   environment:
+  #     PGHOST: postgres
+  #     PGPORT: 5432
+  #     PGDATABASE: ${POSTGRES_DB:-retail_pricing}
+  #     PGUSER: ${POSTGRES_USER:-retail_app}
+  #     PGPASSWORD: ${POSTGRES_PASSWORD:-retail_app}
+  #     REDIS_HOST: redis
+  #     REDIS_PORT: 6379
+  #     REDIS_USERNAME: ${REDIS_USERNAME}
+  #     REDIS_PASSWORD: ${REDIS_PASSWORD}
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #     redis:
+  #       condition: service_healthy
+  #   networks:
+  #     - retail-net
+
+  # opensearch:
+  #   image: opensearchproject/opensearch:3.9.0
+  #   container_name: retail-pricing-opensearch
+  #   restart: unless-stopped
+  #   environment:
+  #     cluster.name: retail-pricing-local
+  #     node.name: retail-pricing-opensearch
+  #     discovery.type: single-node
+  #     bootstrap.memory_lock: "true"
+  #     # Local development only: disables OpenSearch authentication/TLS.
+  #     DISABLE_INSTALL_DEMO_CONFIG: "true"
+  #     DISABLE_SECURITY_PLUGIN: "true"
+  #     OPENSEARCH_JAVA_OPTS: "-Xms1g -Xmx1g"
+  #   ulimits:
+  #     memlock:
+  #       soft: -1
+  #       hard: -1
+  #     nofile:
+  #       soft: 65536
+  #       hard: 65536
+  #   mem_limit: 3g
+  #   ports:
+  #     - "127.0.0.1:${OPENSEARCH_PORT:-9200}:9200"
+  #     - "127.0.0.1:${OPENSEARCH_PERF_ANALYZER_PORT:-9600}:9600"
+  #   volumes:
+  #     - opensearch_data:/usr/share/opensearch/data
+  #   networks:
+  #     - retail-net
+  #   healthcheck:
+  #     test:
+  #       - CMD-SHELL
+  #       - curl -fsS 'http://localhost:9200/_cluster/health?wait_for_status=yellow&timeout=5s' >/dev/null || exit 1
+  #     interval: 15s
+  #     timeout: 10s
+  #     retries: 20
+  #     start_period: 60s
+
+networks:
+  retail-net:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  # opensearch_data:
